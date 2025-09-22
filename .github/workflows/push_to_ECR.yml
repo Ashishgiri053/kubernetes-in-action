@@ -1,0 +1,58 @@
+name: Deploy to ECR
+
+on:
+  push:
+    branches: [ master ] # Triggers the workflow on pushes to the master branch
+
+jobs:
+  build:
+    name: Build and Push Image to ECR
+    runs-on: ubuntu-latest # The type of runner that the job will run on
+
+    steps:
+      - name: Check out code
+        uses: actions/checkout@v4 # Action to check out your repository
+
+      - name: Login to Amazon ECR
+        id: login-ecr
+        uses: aws-actions/amazon-ecr-login@v1 # Action to login to ECR
+        env:
+          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          AWS_SESSION_TOKEN: ${{ secrets.AWS_SESSION_TOKEN }}
+          AWS_REGION: us-east-1 # !! IMPORTANT: Ensure this matches your ECR region !!
+
+      - name: Build, test, tag, and push image to Amazon ECR
+        env:
+          ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
+          ECR_REPOSITORY: clo835-week3 # !! IMPORTANT: Ensure this EXACTLY matches your ECR repository name !!
+          IMAGE_TAG: v0.1 # Initial image tag for version 0.1
+        run: |
+          echo "Current directory: $(pwd)"
+          echo "Listing contents of Chapter02/kubia:"
+          ls -l Chapter02/kubia/
+          
+          # Navigate into the application directory
+          cd Chapter02/kubia/
+          
+          # Build the Docker image
+          echo "Building Docker image: $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG"
+          docker build -t $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG .
+          
+          # Unit test: Run the container and curl it locally
+          echo "Running local unit test..."
+          docker run -d -p 8080:8080 --name nodeapp $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG
+          
+          echo "Waiting for app to start (5 seconds)..."
+          sleep 5 # Give the app a few seconds to start
+          
+          echo "Attempting to curl localhost:8080"
+          curl localhost:8080 || { echo "Curl failed, check container logs"; docker logs nodeapp; exit 1; }
+          
+          # Stop and remove the test container
+          docker stop nodeapp
+          docker rm nodeapp
+          
+          # Push the image to ECR
+          echo "Pushing Docker image to ECR..."
+          docker push $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG
