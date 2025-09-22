@@ -26,7 +26,7 @@ jobs:
         env:
           ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
           ECR_REPOSITORY: clo835-week3 # !! IMPORTANT: Ensure this EXACTLY matches your ECR repository name !!
-          IMAGE_TAG: v0.1 # Initial image tag for version 0.1
+          IMAGE_TAG: v0.2 # Initial image tag for version 0.1
         run: |
           echo "Current directory: $(pwd)"
           echo "Listing contents of Chapter02/kubia:"
